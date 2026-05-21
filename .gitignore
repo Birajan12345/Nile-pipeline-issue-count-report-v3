@@ -17,7 +17,5 @@ Thumbs.db
 .idea/
 
 # Jira source exports — contain ticket data, keep out of version control
-input/*.html
-input/*.htm
-input/*.xls
-input/*.xlsx
+*.html
+*.htm
