@@ -1,0 +1,23 @@
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.xlsx
+*.csv
+*.log
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+*.DS_Store
+Thumbs.db
+.idea/
+
+# Jira source exports — contain ticket data, keep out of version control
+input/*.html
+input/*.htm
+input/*.xls
+input/*.xlsx
