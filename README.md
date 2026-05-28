@@ -98,3 +98,4 @@ CSV_PATH = "jira_export.csv"
 - Update keywords or categories in `nile_pipeline_tracker/config.py`.
 - Change output folder with `OUTPUT_DIR` in `nile_pipeline_tracker/config.py`.
 - Use `REPORT_MONTH_LABEL` to force a custom report title.
+# Nile-pipeline-issue-count-report-v3
