@@ -451,16 +451,3 @@ The team needs to see trends over time. Having one file per month means manually
 
 **Why COUNTIF formulas instead of hardcoded values?**
 The categorizer is not perfect — some tickets need manual correction after review. With hardcoded values, a correction in the Raw tab would not update the Summary. With COUNTIF formulas, any change to a category via the dropdown in Raw immediately reflects across Summary, All Months Summary, and Cover Sheet without re-running the tracker.
-
----
-
-## Author
-
-**Birajan** — NILE Platform Production Support Team  
-Cotiviti Nepal Pvt. Ltd.
-
-Built to eliminate manual monthly reporting and give the production support team a professional, accurate, and automated pipeline issue tracking system.
-
----
-
-*This project is for internal use by the NILE Platform Production Support team. Input files (Jira exports) and output reports (Excel files) are never committed to GitHub — they remain local to each machine.*
