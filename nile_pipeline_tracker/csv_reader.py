@@ -352,7 +352,13 @@ def parse_rows(raw_rows: list) -> list[dict]:
         assignee = get("assignee") or get("assign") or normalize_text(r.get("Assign", ""))
         issue_type = get("issue_type")
 
-        category = categorize(summary, description, issue_type)
+        category = categorize(
+            summary,
+            description,
+            issue_type,
+            comment=comments,
+            close_notes=close_notes,
+        )
 
         rows.append({
             "Key": get("key"),

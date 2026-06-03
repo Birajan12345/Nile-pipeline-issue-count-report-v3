@@ -5,8 +5,19 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.chart import BarChart, PieChart, Reference
 from openpyxl.chart.series import DataPoint
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
 from .config import CATEGORIES, OTHER_CATEGORY, ALL_CATS
+
+# Column layout of Raw Tickets sheet — used to build formula references
+_RAW_COLS = [
+    "Key", "Issue id", "Parent id", "Summary", "Description", "Comment", "Close Notes",
+    "Categories", "New Categories", "Assign", "Status", "Created", "Updated",
+    "Custom field (Assignment Group)", "Assignee", "Reporter", "Resolution",
+    "Custom field (Comments)", "Inward issue link (Cloners)", "Outward issue link (Cloners)",
+    "Inward issue link (Relates)", "Category", "Review Required",
+]
+_RAW_CAT_COL = get_column_letter(_RAW_COLS.index("Category") + 1)  # "V"
 
 HDR_FILL = PatternFill("solid", fgColor="1F3864")
 HDR_FONT = Font(color="FFFFFF", bold=True, size=11)
@@ -58,7 +69,8 @@ def load_prev_month_counts(output_dir: str) -> dict:
 
 
 def write_cover_sheet(ws, rows: list[dict], month_label: str,
-                      cat_counts: dict, prev_counts: dict):
+                      cat_counts: dict, prev_counts: dict,
+                      raw_sheet_name: str = "Raw Tickets"):
     """
     Executive cover sheet — the first sheet the report opens on.
     Contains: branded header, 4 KPI cards, health status,
@@ -138,7 +150,15 @@ def write_cover_sheet(ws, rows: list[dict], month_label: str,
 
         ws.merge_cells(f"{col_letter_s}6:{col_letter_e}6")
         vc = ws[f"{col_letter_s}6"]
-        vc.value     = value
+        _cat_range = f"'{raw_sheet_name}'!${_RAW_CAT_COL}$3:${_RAW_CAT_COL}$10000"
+        if ki == 0:  # Total Issues
+            vc.value = f'=COUNTIF({_cat_range},"<>")'
+        elif ki == 3:  # Needs Review %
+            _total = f'COUNTIF({_cat_range},"<>")'
+            _other = f'COUNTIF({_cat_range},"Other")'
+            vc.value = f'=TEXT(IF({_total}>0,{_other}/{_total},0),"0.0%")'
+        else:
+            vc.value = value
         vc.font      = Font(bold=True, size=22, color=txt_dark)
         vc.fill      = PatternFill("solid", fgColor=bg)
         vc.alignment = Alignment(horizontal="center", vertical="center")
@@ -335,16 +355,42 @@ def write_raw_sheet(ws, rows: list[dict], month_label: str):
     ws.freeze_panes = "A3"
     ws.auto_filter.ref = f"A2:{get_column_letter(len(cols))}2"
 
+    # ── Category dropdown validation ───────────────────────────
+    category_col_index = cols.index("Category") + 1
+    cat_col_letter = get_column_letter(category_col_index)
+
+    wb = ws.parent
+    if "_categories" not in wb.sheetnames:
+        cat_ws = wb.create_sheet("_categories")
+        for i, cat in enumerate(ALL_CATS, start=1):
+            cat_ws.cell(row=i, column=1, value=cat)
+        cat_ws.sheet_state = "hidden"
+    else:
+        cat_ws = wb["_categories"]
+
+    cat_range = f"'_categories'!$A$1:$A${len(ALL_CATS)}"
+    dv = DataValidation(
+        type="list",
+        formula1=cat_range,
+        allow_blank=False,
+        showDropDown=False,
+        showErrorMessage=True,
+        errorTitle="Invalid Category",
+        error="Please select a valid category from the dropdown.",
+    )
+    ws.add_data_validation(dv)
+    dv.sqref = f"{cat_col_letter}3:{cat_col_letter}{2 + len(rows)}"
+
 
 def write_summary_sheet(ws, rows: list[dict], month_label: str,
-                        prev_counts: dict = None):
+                        prev_counts: dict = None,
+                        raw_sheet_name: str = "Raw Tickets"):
     ws.title = "Monthly Summary"
     counts = defaultdict(int)
     for row in rows:
         counts[row["Category"]] += 1
 
     sorted_cats = [(name, counts[name]) for name in ALL_CATS]
-    total = sum(count for _, count in sorted_cats)
 
     ws.merge_cells("A1:F1")
     title = ws["A1"]
@@ -353,7 +399,8 @@ def write_summary_sheet(ws, rows: list[dict], month_label: str,
     title.alignment = Alignment(horizontal="center")
     ws.row_dimensions[1].height = 28
 
-    ws["A2"].value = f"Total Tickets: {total}"
+    cat_ref = f"'{raw_sheet_name}'!${_RAW_CAT_COL}$3:${_RAW_CAT_COL}$10000"
+    ws["A2"].value = f'="Total Tickets: "&TEXT(COUNTIF({cat_ref},"<>"),"0")'
     ws["A2"].font = Font(bold=True, size=12, color="444444")
     ws.row_dimensions[2].height = 20
 
@@ -366,8 +413,8 @@ def write_summary_sheet(ws, rows: list[dict], month_label: str,
         c.border = BOX
     ws.row_dimensions[4].height = 22
 
-    for ri, (cat_name, count) in enumerate(sorted_cats, start=5):
-        pct   = round(count / total * 100, 1) if total else 0
+    first_data_row = 5
+    for ri, (cat_name, count) in enumerate(sorted_cats, start=first_data_row):
         color = CAT_COLOR.get(cat_name, "D9D9D9")
         alt   = ri % 2 == 0
 
@@ -377,15 +424,19 @@ def write_summary_sheet(ws, rows: list[dict], month_label: str,
         if alt:
             c1.fill = ALT_FILL
 
-        c2 = ws.cell(row=ri, column=2, value=count)
-        c2.alignment = Alignment(horizontal="center")
-        c2.font = Font(bold=True)
+        countif_expr = f'COUNTIF({cat_ref},"{cat_name}")'
+        c2 = ws.cell(row=ri, column=2, value=f"={countif_expr}")
+        c2.alignment = Alignment(horizontal="center", vertical="center")
+        c2.font = Font(bold=True, size=11)
         c2.border = BOX
         if alt:
             c2.fill = ALT_FILL
 
-        c3 = ws.cell(row=ri, column=3, value=f"{pct}%")
-        c3.alignment = Alignment(horizontal="center")
+        total_expr = f"COUNTIF({cat_ref},\"<>\")"
+        c3 = ws.cell(row=ri, column=3,
+                     value=f"=IF({total_expr}>0,{countif_expr}/{total_expr},0)")
+        c3.number_format = "0.0%"
+        c3.alignment = Alignment(horizontal="center", vertical="center")
         c3.border = BOX
         if alt:
             c3.fill = ALT_FILL
@@ -418,15 +469,17 @@ def write_summary_sheet(ws, rows: list[dict], month_label: str,
         color_cell.fill   = PatternFill("solid", fgColor=color)
         color_cell.border = BOX
 
-    total_row = 5 + len(sorted_cats)
-    if total_row > 5:
+    total_row = first_data_row + len(sorted_cats)
+    if total_row > first_data_row:
+        last_data_row = total_row - 1
         t1 = ws.cell(row=total_row, column=1, value="Monthly Total")
         t1.font   = Font(bold=True)
         t1.border = BOX
 
-        t2 = ws.cell(row=total_row, column=2, value=total)
-        t2.font      = Font(bold=True)
-        t2.alignment = Alignment(horizontal="center")
+        t2 = ws.cell(row=total_row, column=2,
+                     value=f"=SUM(B{first_data_row}:B{last_data_row})")
+        t2.font      = Font(bold=True, size=11)
+        t2.alignment = Alignment(horizontal="center", vertical="center")
         t2.border    = BOX
 
         t3 = ws.cell(row=total_row, column=3, value="100%")
@@ -485,40 +538,350 @@ def write_summary_sheet(ws, rows: list[dict], month_label: str,
     ws.freeze_panes = "A5"
 
 
-def write_uncategorized_sheet(ws, rows: list[dict]):
+def write_uncategorized_sheet(ws, rows: list[dict],
+                               raw_sheet_name: str = "Raw Tickets"):
     ws.title = "Needs Review"
-    uncategorized = [r for r in rows if r["Category"] == OTHER_CATEGORY["name"]]
 
-    if not uncategorized:
-        ws["A1"].value = "All tickets were successfully categorized."
-        ws["A1"].font = Font(bold=True, color="00B050")
-        return
+    other_rows  = [r for r in rows if r.get("Category") == "Other"]
+    total_other = len(other_rows)
 
+    # ── Title row ─────────────────────────────────────────────
     ws.merge_cells("A1:G1")
-    header = ws["A1"]
-    header.value = f"Uncategorized Tickets — needs manual category ({len(uncategorized)} tickets)"
-    header.font = Font(bold=True, size=13, color="C00000")
-    header.alignment = Alignment(horizontal="center")
+    h1 = ws["A1"]
+    h1.value     = f"Needs Review — {total_other} uncategorized tickets"
+    h1.font      = Font(bold=True, size=13, color="FFFFFF")
+    h1.fill      = PatternFill("solid", fgColor="C00000")
+    h1.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 26
 
-    cols = ["Key", "Summary", "Category", "Status", "Created", "Assignee", "Reviewer"]
-    for ci, col_name in enumerate(cols, 1):
-        c = ws.cell(row=2, column=ci, value=col_name)
-        c.fill = PatternFill("solid", fgColor="C00000")
-        c.font = Font(color="FFFFFF", bold=True)
-        c.border = BOX
+    # ── Live count linked to Raw Tickets ──────────────────────
+    cat_range = f"'{raw_sheet_name}'!${_RAW_CAT_COL}$3:${_RAW_CAT_COL}$10000"
+    ws.merge_cells("A2:G2")
+    c2 = ws["A2"]
+    c2.value = (
+        f"=\"Needs Review count: \""
+        f"&COUNTIF({cat_range},\"Other\")"
+        "&\" — Change category in Raw Tickets tab, then re-run to refresh this list\""
+    )
+    c2.font      = Font(size=11, italic=True, color="C00000")
+    c2.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[2].height = 18
 
-    for ri, row in enumerate(uncategorized, 3):
-        for ci, col_name in enumerate(cols, 1):
-            c = ws.cell(row=ri, column=ci, value=row.get(col_name, ""))
+    # ── Column headers ────────────────────────────────────────
+    hdrs = ["Key", "Summary", "Description", "Comment", "Close Notes", "Status", "Created"]
+    hdr_fill = PatternFill("solid", fgColor="C00000")
+    ws.row_dimensions[3].height = 20
+    for ci, hdr in enumerate(hdrs, 1):
+        c = ws.cell(row=3, column=ci, value=hdr)
+        c.fill      = hdr_fill
+        c.font      = Font(bold=True, size=11, color="FFFFFF")
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border    = BOX
+
+    # ── Static data rows ──────────────────────────────────────
+    for ri, row in enumerate(other_rows, start=4):
+        alt      = ri % 2 == 0
+        alt_fill = PatternFill("solid", fgColor="FFF2F2") if alt else None
+        vals = [
+            row.get("key",         row.get("Key",         "")),
+            row.get("summary",     row.get("Summary",     "")),
+            row.get("description", row.get("Description", "")),
+            row.get("comments",    row.get("Comment",     "")),
+            row.get("close_notes", row.get("Close Notes", "")),
+            row.get("status",      row.get("Status",      "")),
+            row.get("created",     row.get("Created",     "")),
+        ]
+        for ci, val in enumerate(vals, 1):
+            c = ws.cell(row=ri, column=ci, value=val or "")
             c.border = BOX
-            if ri % 2 == 0:
-                c.fill = PatternFill("solid", fgColor="FFF2F2")
-            c.alignment = Alignment(wrap_text=(col_name == "Summary"), vertical="top")
+            c.font   = Font(size=10)
+            if alt_fill:
+                c.fill = alt_fill
+            if ci in (2, 3, 4, 5):
+                c.alignment = Alignment(wrap_text=True, vertical="top")
+                ws.row_dimensions[ri].height = 40
+            else:
+                c.alignment = Alignment(vertical="top")
 
-    ws.column_dimensions["A"].width = 14
-    ws.column_dimensions["B"].width = 60
-    ws.column_dimensions["C"].width = 22
-    ws.column_dimensions["D"].width = 14
-    ws.column_dimensions["E"].width = 14
-    ws.column_dimensions["F"].width = 18
-    ws.column_dimensions["G"].width = 16
+    # ── Footer note ───────────────────────────────────────────
+    note_row = 4 + total_other + 1
+    ws.merge_cells(f"A{note_row}:G{note_row}")
+    note = ws[f"A{note_row}"]
+    note.value = (
+        f"To recategorize: go to {raw_sheet_name} → find ticket → "
+        "use Category dropdown → re-run python run.py to refresh this list."
+    )
+    note.font      = Font(size=9, italic=True, color="888780")
+    note.alignment = Alignment(horizontal="center")
+
+    # ── Column widths ─────────────────────────────────────────
+    widths = [14, 42, 38, 32, 28, 12, 12]
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A4"
+    ws.sheet_view.showGridLines = False
+
+
+# ── Multi-month helpers ───────────────────────────────────────────────────────
+
+def _short_label(month_label: str) -> str:
+    """Convert 'April 2026' → 'Apr 2026', 'May 2026' → 'May 2026'."""
+    parts = month_label.strip().split()
+    if len(parts) >= 2:
+        month_name = parts[0]
+        year       = parts[-1]
+        if len(month_name) > 3:
+            month_name = month_name[:3]
+        return f"{month_name} {year}"
+    return month_label[:10]
+
+
+def write_month_raw_sheet(wb, rows: list[dict], month_label: str):
+    """
+    Write raw tickets for one month as a named sheet.
+    Sheet name: 'Raw — Apr 2026', 'Raw — May 2026' etc.
+    If the sheet already exists, skip (never overwrite previous month).
+    """
+    short      = _short_label(month_label)
+    sheet_name = f"Raw — {short}"
+
+    if sheet_name in wb.sheetnames:
+        print(f"  Sheet '{sheet_name}' already exists — skipping.")
+        return wb[sheet_name]
+
+    ws = wb.create_sheet(sheet_name)
+    write_raw_sheet(ws, rows, month_label)
+    ws.title = sheet_name   # override the title set inside write_raw_sheet
+    return ws
+
+
+def write_all_months_summary(wb, all_months_data: list[dict]):
+    """
+    Write or fully refresh the 'All Months Summary' sheet.
+    all_months_data = list of dicts, one per month:
+      {"label": "Apr 2026", "counts": {"Configuration Issue": 31, ...}}
+    Sorted oldest → newest.
+
+    Layout: Category | Count(Apr) | %(Apr) | Count(May) | %(May) | ...
+    All counts are COUNTIF formulas referencing each Raw sheet.
+    Totals use SUM formulas.  Chart is horizontal bars with data labels.
+    """
+    SHEET_NAME = "All Months Summary"
+    if SHEET_NAME in wb.sheetnames:
+        del wb[SHEET_NAME]
+
+    # Insert at position 1 (right after Cover Sheet which is always position 0)
+    ws = wb.create_sheet(SHEET_NAME, 1)
+
+    NAVY  = "1F3864"
+    WHITE = "FFFFFF"
+
+    # 2 columns per month: Count + % Share
+    # Total columns = 1 (Category) + 2 * n_months
+    n_months        = len(all_months_data)
+    last_col_num    = 1 + 2 * max(n_months, 1)
+    last_col_letter = get_column_letter(last_col_num)
+
+    # ── Title (row 1) ───────────────────────────────────────────────────
+    ws.merge_cells(f"A1:{last_col_letter}1")
+    t = ws["A1"]
+    t.value     = "NILE Platform — Production Support  |  All Months Issue Summary"
+    t.font      = Font(bold=True, size=14, color=WHITE)
+    t.fill      = PatternFill("solid", fgColor=NAVY)
+    t.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 30
+
+    # ── Column headers (row 3) ──────────────────────────────────────────
+    ws.row_dimensions[3].height = 22
+    hdr_fill = PatternFill("solid", fgColor=NAVY)
+
+    h0 = ws.cell(row=3, column=1, value="Category")
+    h0.fill      = hdr_fill
+    h0.font      = Font(bold=True, size=11, color=WHITE)
+    h0.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    h0.border    = BOX
+
+    col = 2
+    for month in all_months_data:
+        hc = ws.cell(row=3, column=col, value=month["label"])
+        hc.fill      = hdr_fill
+        hc.font      = Font(bold=True, size=11, color=WHITE)
+        hc.alignment = Alignment(horizontal="center", vertical="center")
+        hc.border    = BOX
+
+        hp = ws.cell(row=3, column=col + 1, value="% Share")
+        hp.fill      = hdr_fill
+        hp.font      = Font(bold=True, size=10, color=WHITE)
+        hp.alignment = Alignment(horizontal="center", vertical="center")
+        hp.border    = BOX
+        col += 2
+
+    # ── Data rows — COUNTIF formulas referencing each Raw sheet ─────────
+    # total_row pre-computed so % formula can reference it
+    total_row = 4 + len(ALL_CATS)
+
+    for ri, cat_name in enumerate(ALL_CATS, 4):
+        alt      = ri % 2 == 0
+        alt_fill = PatternFill("solid", fgColor="F2F7FF") if alt else None
+
+        c1 = ws.cell(row=ri, column=1, value=cat_name)
+        c1.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        c1.border    = BOX
+        if alt_fill:
+            c1.fill = alt_fill
+
+        col = 2
+        for month in all_months_data:
+            raw_tab  = f"Raw — {month['label']}"
+            safe_tab = raw_tab.replace("'", "''")
+
+            # Count — live COUNTIF against the Raw sheet
+            count_formula = (
+                f"=COUNTIF('{safe_tab}'!$V$3:$V$10000,\"{cat_name}\")"
+            )
+            cc = ws.cell(row=ri, column=col, value=count_formula)
+            cc.alignment = Alignment(horizontal="center", vertical="center")
+            cc.font      = Font(bold=True, size=11)
+            cc.border    = BOX
+            if alt_fill:
+                cc.fill = alt_fill
+
+            # % Share — this category count / month total
+            col_letter = get_column_letter(col)
+            total_ref  = f"{col_letter}{total_row}"
+            pct_formula = f"=IF({total_ref}>0,{col_letter}{ri}/{total_ref},0)"
+            pc = ws.cell(row=ri, column=col + 1, value=pct_formula)
+            pc.number_format = "0.0%"
+            pc.alignment     = Alignment(horizontal="center", vertical="center")
+            pc.font          = Font(size=10, color="666660")
+            pc.border        = BOX
+            if alt_fill:
+                pc.fill = alt_fill
+
+            col += 2
+
+        ws.row_dimensions[ri].height = 20
+
+    # ── Total row — SUM formulas ─────────────────────────────────────────
+    tot_fill = PatternFill("solid", fgColor="E8EDF5")
+    t1 = ws.cell(row=total_row, column=1, value="TOTAL")
+    t1.font      = Font(bold=True, size=11)
+    t1.fill      = tot_fill
+    t1.border    = BOX
+    t1.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+    first_data = 4
+    last_data  = first_data + len(ALL_CATS) - 1   # includes Other
+
+    col = 2
+    for month in all_months_data:
+        col_letter  = get_column_letter(col)
+        sum_formula = f"=SUM({col_letter}{first_data}:{col_letter}{last_data})"
+        tc = ws.cell(row=total_row, column=col, value=sum_formula)
+        tc.font      = Font(bold=True, size=12)
+        tc.fill      = tot_fill
+        tc.border    = BOX
+        tc.alignment = Alignment(horizontal="center", vertical="center")
+
+        # % column for the total row = 100 %
+        pc = ws.cell(row=total_row, column=col + 1, value="100%")
+        pc.font      = Font(size=10, color="666660")
+        pc.fill      = tot_fill
+        pc.border    = BOX
+        pc.alignment = Alignment(horizontal="center", vertical="center")
+        col += 2
+
+    ws.row_dimensions[total_row].height = 24
+
+    # ── Vertical clustered bar chart (openpyxl native API) ───────────────────
+    if all_months_data:
+        from openpyxl.chart.label import DataLabelList
+        from openpyxl.chart.legend import Legend
+
+        # Chart rows: data rows only, no TOTAL row
+        chart_last_row = 3 + len(ALL_CATS)
+
+        chart          = BarChart()
+        chart.type     = "col"
+        chart.barDir   = "col"
+        chart.grouping = "clustered"
+        chart.overlap  = 0
+        chart.title    = "Issue Count by Category — All Months"
+        chart.height   = 18
+        chart.width    = 30
+
+        # Fix 1: correct axis positions for a vertical (column) chart
+        chart.x_axis.axPos = "b"   # category axis at bottom
+        chart.y_axis.axPos = "l"   # value axis on left
+        chart.x_axis.title = None
+        chart.y_axis.title = None
+
+        # Fix 2: X-axis label rotation — -45 degrees via txPr/bodyPr
+        chart.x_axis.tickLblPos = "low"
+        chart.x_axis.delete     = False
+        try:
+            from openpyxl.drawing.text import RichText, BodyProperties
+            chart.x_axis.txPr = RichText(bodyPr=BodyProperties(rot=-2700000))
+        except Exception:
+            pass
+
+        # Fix 3: Y-axis major gridlines
+        try:
+            from openpyxl.chart.axis import ChartLines
+            chart.y_axis.majorGridlines = ChartLines()
+        except Exception:
+            pass
+
+        chart.legend          = Legend()
+        chart.legend.position = "b"
+        chart.legend.overlay  = False
+
+        cats_ref = Reference(ws, min_col=1, min_row=4, max_row=chart_last_row)
+        chart.set_categories(cats_ref)
+
+        month_colors = [
+            "2E75B6",  # blue
+            "ED7D31",  # orange
+            "70AD47",  # green
+            "FFC000",  # yellow
+            "5B9BD5",  # light blue
+            "FF0000",  # red
+        ]
+
+        col = 2
+        for mi, month in enumerate(all_months_data):
+            data_ref = Reference(ws, min_col=col, min_row=3,
+                                 max_row=chart_last_row)
+            chart.add_data(data_ref, titles_from_data=True)
+
+            series = chart.series[mi]
+            color  = month_colors[mi % len(month_colors)]
+            try:
+                series.graphicalProperties.solidFill      = color
+                series.graphicalProperties.line.solidFill = color
+            except Exception:
+                pass
+
+            series.dLbls               = DataLabelList()
+            series.dLbls.showVal       = True
+            series.dLbls.showCatName   = False
+            series.dLbls.showSerName   = False
+            series.dLbls.showLegendKey = False
+            series.dLbls.showPercent   = False
+            series.dLbls.dLblPos       = "outEnd"
+
+            col += 2
+
+        ws.add_chart(chart, f"A{total_row + 2}")
+
+    # ── Column widths ────────────────────────────────────────────────────
+    ws.column_dimensions["A"].width = 28
+    col = 2
+    for _ in all_months_data:
+        ws.column_dimensions[get_column_letter(col)].width     = 13  # count
+        ws.column_dimensions[get_column_letter(col + 1)].width = 10  # %
+        col += 2
+
+    ws.freeze_panes             = "B4"
+    ws.sheet_view.showGridLines = False
+    return ws

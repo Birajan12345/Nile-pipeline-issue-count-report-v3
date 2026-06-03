@@ -1,21 +1,17 @@
-venv/
-.venv/
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.xlsx
-*.csv
-*.log
-env/
-*.egg-info/
-dist/
-build/
-.pytest_cache/
-*.DS_Store
-Thumbs.db
-.idea/
+﻿# Input/Output data — never push to GitHub
+input/*
+output/*
+!input/.gitkeep
+!output/.gitkeep
 
-# Jira source exports — contain ticket data, keep out of version control
-*.html
-*.htm
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.env
+
+# Excel temp files
+~$*.xlsx

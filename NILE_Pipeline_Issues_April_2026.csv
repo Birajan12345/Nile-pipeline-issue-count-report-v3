@@ -1,0 +1,48 @@
+Key,Summary,Category,Status,Issue Type,Priority,Assignee,Reporter,Created,Resolution,Labels
+NILE-1001,Pipeline failed for client ABC data load,Data Issue,Done,Bug,High,Birajan,Ram,2025-04-01,,
+NILE-1002,File not received from vendor XYZ,File Issue,In Progress,Bug,Critical,Birajan,Sita,2025-04-01,,data-team
+NILE-1003,Schema change detected in raw table,Schema Issue,Open,Bug,Medium,Ram,Hari,2025-04-02,,
+NILE-1004,Request for new pipeline for client DEF,Request,Done,Task,Low,Sita,Birajan,2025-04-02,Done,request
+NILE-1005,Unmatched raw count issue in member table,Data Issue,Open,Bug,High,Birajan,Ram,2025-04-03,,
+NILE-1006,Spooler not running since last night,File Issue,Done,Bug,Critical,Ram,Sita,2025-04-03,,
+NILE-1007,Pipeline schedule missed for morning run,Pipeline Schedule,Open,Bug,High,Birajan,Hari,2025-04-04,,
+NILE-1008,Data mismatch found in claim output,Data Issue,In Progress,Bug,High,Sita,Birajan,2025-04-04,,
+NILE-1009,Config error in pipeline after deployment,Pipeline Configuration,Done,Bug,Medium,Hari,Ram,2025-04-05,Done,
+NILE-1010,Hadoop cluster unreachable from pipeline,Hadoop Issue,Open,Bug,Critical,Birajan,Sita,2025-04-05,,hadoop
+NILE-1011,File missing for April 5th batch,File Issue,Done,Bug,High,Ram,Birajan,2025-04-06,Done,
+NILE-1012,Request for access to reporting dashboard,Request,Done,Task,Low,Sita,Hari,2025-04-07,Done,request
+NILE-1013,Pipeline stuck after schema drift,Pipeline Issue,Open,Bug,High,Birajan,Ram,2025-04-07,,
+NILE-1014,Raw count mismatch on eligibility file,File Issue,Open,Bug,Medium,Ram,Sita,2025-04-08,,
+NILE-1015,Pipeline configuration update needed,Pipeline Configuration,Done,Task,Medium,Hari,Birajan,2025-04-08,Done,
+NILE-1016,Empty file received from client GHI,File Issue,Open,Bug,High,Birajan,Ram,2025-04-09,,
+NILE-1017,Hive query timeout on large dataset,Hadoop Issue,Done,Bug,High,Ram,Sita,2025-04-09,Done,
+NILE-1018,ETL job failed for nightly processing,Pipeline Issue,Open,Bug,Critical,Sita,Birajan,2025-04-10,,
+NILE-1019,Column removed from source without notice,Schema Issue,Open,Bug,High,Birajan,Hari,2025-04-10,,
+NILE-1020,Request to update pipeline schedule,Pipeline Schedule,Done,Task,Low,Ram,Sita,2025-04-11,Done,request
+NILE-1021,Pipeline not started at expected time,Pipeline Schedule,Open,Bug,High,Hari,Birajan,2025-04-11,,
+NILE-1022,Invalid data in member demographics file,File Issue,In Progress,Bug,High,Birajan,Ram,2025-04-12,,
+NILE-1023,Spool error blocking file delivery,File Issue,Open,Bug,Critical,Ram,Sita,2025-04-13,,
+NILE-1024,File not received for April 13th,File Issue,Done,Bug,High,Sita,Birajan,2025-04-13,Done,
+NILE-1025,New pipeline requirement for client JKL,Data Issue,Open,Task,Low,Birajan,Hari,2025-04-14,,request
+NILE-1026,ETL pipeline broken after config change,Pipeline Issue,Done,Bug,High,Ram,Birajan,2025-04-14,Done,
+NILE-1027,Delayed pipeline run affecting SLA,Pipeline Schedule,Open,Bug,High,Sita,Ram,2025-04-15,,
+NILE-1028,Unmatched records in provider table,Unmatched Raw Count,Open,Bug,Medium,Birajan,Sita,2025-04-15,,
+NILE-1029,Namenode issue on hadoop cluster,Hadoop Issue,Done,Bug,Critical,Ram,Hari,2025-04-16,Done,
+NILE-1030,Incorrect data type in schema definition,Data Issue,Open,Bug,High,Hari,Birajan,2025-04-16,,
+NILE-1031,Pipeline schedule not aligned with SLA,Pipeline Schedule,Open,Task,Medium,Birajan,Ram,2025-04-17,,
+NILE-1032,Source file rejected by validation,File Issue,Done,Bug,High,Ram,Sita,2025-04-17,Done,
+NILE-1033,Data discrepancy in final claim output,Data Issue,Open,Bug,High,Sita,Birajan,2025-04-18,,
+NILE-1034,Request to onboard new data source,Data Issue,Done,Task,Low,Birajan,Hari,2025-04-18,Done,request
+NILE-1035,Job failed due to transform error,Pipeline Issue,Open,Bug,Critical,Ram,Sita,2025-04-19,,
+NILE-1036,Pipeline parameter misconfigured,Pipeline Configuration,Done,Bug,High,Hari,Birajan,2025-04-19,Done,
+NILE-1037,Unknown processing error in batch run,Other / Uncategorized,Open,Bug,Medium,Birajan,Ram,2025-04-20,,
+NILE-1038,File missing from SFTP landing zone,File Issue,Open,Bug,High,Ram,Sita,2025-04-20,,
+NILE-1039,Spooler down after server restart,Spooler Issue,Done,Bug,Critical,Sita,Hari,2025-04-21,Done,
+NILE-1040,Schema drift detected in claims feed,Schema Issue,Open,Bug,High,Birajan,Ram,2025-04-21,,
+NILE-1041,Pipeline stuck in running state,Pipeline Issue,Open,Bug,Critical,Ram,Sita,2025-04-22,,
+NILE-1042,Request for monthly report automation,Request,Done,Task,Low,Hari,Birajan,2025-04-22,Done,request
+NILE-1043,Wrong data loaded into member table,Data Issue,Open,Bug,High,Sita,Ram,2025-04-23,,
+NILE-1044,Hadoop job timed out overnight,Hadoop Issue,Done,Bug,High,Birajan,Hari,2025-04-23,Done,
+NILE-1045,Schedule delay for end of month run,Pipeline Schedule,Open,Bug,High,Ram,Birajan,2025-04-24,,
+NILE-1046,Unmatched count in eligibility records,Data Issue,Open,Bug,Medium,Sita,Ram,2025-04-24,,
+NILE-1047,Pipeline configuration change request,Data Issue,Done,Task,Low,Birajan,Hari,2025-04-25,Done,request
